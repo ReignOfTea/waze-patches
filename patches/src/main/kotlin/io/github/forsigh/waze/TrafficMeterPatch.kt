@@ -22,7 +22,12 @@ val trafficMeterPatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean("tm", true, "CONFIG_VALUE_CAR_LIB_TRAFFIC_METER_FEATURE_ENABLED")
+        InAppMenu.switch(
+            "Android Auto", "Traffic meter",
+            "Shows the traffic meter on the car screen.",
+            true,
+            mapOf("CONFIG_VALUE_CAR_LIB_TRAFFIC_METER_FEATURE_ENABLED" to "true"),
+        )
         println("trafficMeterPatch: car traffic meter forced on")
     }
 }

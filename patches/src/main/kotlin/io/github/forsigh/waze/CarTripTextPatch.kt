@@ -27,13 +27,14 @@ val carTripTextPatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean(
-            "ctt", true,
-            "CONFIG_VALUE_AAOS_ETA_IN_TRIP_TEXT_ENABLED",
-        )
-        recordBoolean(
-            "ctt", true,
-            "CONFIG_VALUE_AAOS_TIME_TO_DESTINATION_IN_TRIP_TEXT_ENABLED",
+        InAppMenu.switch(
+            "Experimental", "Car trip screen text",
+            "Adds arrival time and time left to the car trip bar.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_AAOS_ETA_IN_TRIP_TEXT_ENABLED" to "true",
+                "CONFIG_VALUE_AAOS_TIME_TO_DESTINATION_IN_TRIP_TEXT_ENABLED" to "true",
+            ),
         )
     }
 }

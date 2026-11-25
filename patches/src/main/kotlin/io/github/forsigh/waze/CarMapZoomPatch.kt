@@ -109,11 +109,20 @@ val carMapZoomPatch = bytecodePatch(
             throw PatchException("carMapZoomPatch: implausible config id $id for $SCALE_FIELD")
         }
 
-        // Written through the shared native helper, not a hand-rolled call in a Java setter: that
-        // hook only fired when Waze persisted some unrelated boolean, so on a run with no such write
-        // the scale was never set (and it had no isReady() guard). recordNativeLong lands on both
-        // config-sync callbacks and checks isReady() first.
-        recordNativeLong("cmz", SCALE_FIELD to tenths)
+        val key = "CONFIG_VALUE_AAOS_MAP_SCALE_FACTOR_TIMES_TEN"
+        InAppMenu.choice(
+            "Experimental", "Car map zoom",
+            "Map scale on the car screen. 1.0 leaves Waze's own scale.",
+            token,
+            listOf("1.0x" to "1.0x (stock)", "1.25x" to "1.25x", "1.5x" to "1.5x", "2.0x" to "2.0x"),
+            mapOf(
+                "1.0x" to mapOf(key to "stock"),
+                "1.25x" to mapOf(key to "13"),
+                "1.5x" to mapOf(key to "15"),
+                "2.0x" to mapOf(key to "20"),
+            ),
+            mapOf(key to if (token == "1.0x") null else tenths.toString()),
+        )
 
         println(
             "carMapZoomPatch: $SCALE_FIELD (id 0x${id.toString(16)}) set to ${scale}x " +

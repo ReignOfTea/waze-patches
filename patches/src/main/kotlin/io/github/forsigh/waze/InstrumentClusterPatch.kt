@@ -32,14 +32,23 @@ val instrumentClusterPatch = bytecodePatch(
     )
 
     execute {
-        recordBoolean(
-            "clu", true,
-            "CONFIG_VALUE_CAR_LIB_INSTRUMENT_CLUSTER_ENABLED",
-            "CONFIG_VALUE_CAR_LIB_INSTRUMENT_CLUSTER_ALERTS_ENABLED",
-            "CONFIG_VALUE_CAR_LIB_INSTRUMENT_CLUSTER_INSTRUCTIONS_AND_ETA_ENABLED",
-            "CONFIG_VALUE_CAR_LIB_INSTRUMENT_CLUSTER_MAP_POIS_ENABLED",
+        InAppMenu.switch(
+            "Experimental", "Instrument cluster",
+            "Shows the map and alerts on the car's cluster screen.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_CAR_LIB_INSTRUMENT_CLUSTER_ENABLED" to "true",
+                "CONFIG_VALUE_CAR_LIB_INSTRUMENT_CLUSTER_ALERTS_ENABLED" to "true",
+                "CONFIG_VALUE_CAR_LIB_INSTRUMENT_CLUSTER_INSTRUCTIONS_AND_ETA_ENABLED" to "true",
+                "CONFIG_VALUE_CAR_LIB_INSTRUMENT_CLUSTER_MAP_POIS_ENABLED" to "true",
+            ),
         )
-        if (large == true) recordBoolean("clu", true, "CONFIG_VALUE_AAOS_LCV_SUPPORT_ENABLED")
+        InAppMenu.switch(
+            "Experimental", "Light-commercial-vehicle mode",
+            "Waze's large-commercial-vehicle support. Off leaves that flag alone.",
+            large == true,
+            mapOf("CONFIG_VALUE_AAOS_LCV_SUPPORT_ENABLED" to "true"),
+        )
         println("instrumentClusterPatch: cluster map, alerts, instructions/ETA and map POIs forced on, large = ${if (large == true) "on" else "stock"}")
     }
 }

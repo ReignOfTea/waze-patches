@@ -72,22 +72,29 @@ private fun pivot(dp: Float, axis: String) = buildString {
  * Scale block. The dial scales the whole cluster; the sign is counter-scaled so it ends up at its
  * own factor regardless of the dial's.
  */
-private fun scaleBlock(dial: Float, sign: Float, cls: String) = buildString {
-    val counter = sign / dial
+private fun scaleBlock(dial: String, sign: String, cls: String) = buildString {
     // Dial: root view, pivot bottom-left (stock cluster is 110dp square).
     appendLine("iget-object v0, p0, ${cls}->a:Landroid/view/View;")
     appendLine("const/4 v1, 0x0")
     appendLine("int-to-float v1, v1")
     appendLine("invoke-virtual {v0, v1}, Landroid/view/View;->setPivotX(F)V")
     append(pivot(110f, "Y"))
-    appendLine("const v2, ${floatBits(dial)}")
+    appendLine("const-string v2, \"spd.dial|$dial\"")
+    appendLine("invoke-static {v2}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->scaleOf(Ljava/lang/String;)F")
+    appendLine("move-result v2")
     appendLine("invoke-virtual {v0, v2}, Landroid/view/View;->setScaleX(F)V")
     appendLine("invoke-virtual {v0, v2}, Landroid/view/View;->setScaleY(F)V")
     // Sign: its own container, pivot bottom-right (stock sign is a 40dp square).
     appendLine("iget-object v0, p0, ${cls}->d:Landroid/view/View;")
     append(pivot(40f, "X"))
     append(pivot(40f, "Y"))
-    appendLine("const v2, ${floatBits(counter)}")
+    appendLine("const-string v1, \"spd.sign|$sign\"")
+    appendLine("invoke-static {v1}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->scaleOf(Ljava/lang/String;)F")
+    appendLine("move-result v1")
+    appendLine("const-string v2, \"spd.dial|$dial\"")
+    appendLine("invoke-static {v2}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->scaleOf(Ljava/lang/String;)F")
+    appendLine("move-result v2")
+    appendLine("div-float v2, v1, v2")
     appendLine("invoke-virtual {v0, v2}, Landroid/view/View;->setScaleX(F)V")
     appendLine("invoke-virtual {v0, v2}, Landroid/view/View;->setScaleY(F)V")
     // The stock bounds are 110dp; let the cluster draw outside them.
@@ -142,11 +149,6 @@ val speedometerScalePatch = bytecodePatch(
     )
 
     execute {
-        if (always == true) {
-            recordBoolean("spd", true, "CONFIG_VALUE_MAP_SHOW_SPEEDOMETER")
-            recordLong("spd", "CONFIG_VALUE_MAP_SPEEDOMETER_MIN_SPEED_KPH" to 0L)
-            recordLong("spd", "CONFIG_VALUE_MAP_SHOW_SPEEDOMETER_AFTER_NUM_SESSIONS" to 2_147_483_647L)
-        }
         val dialToken = dial ?: "1.0x"
         val signToken = sign ?: "1.0x"
         val allowed = setOf("1.0x", "1.0", "1.15x", "1.3x", "1.5x", "2.0x")
@@ -154,18 +156,34 @@ val speedometerScalePatch = bytecodePatch(
         requireChoice("speedometerScalePatch", "sign", signToken, allowed)
         val dialScale = dialToken.removeSuffix("x").toFloat()
         val signScale = signToken.removeSuffix("x").toFloat()
-        // Resolved before the stock-size early return: a build that moved the cluster must fail the
-        // row loudly, not report success while scaling nothing.
+        val sizes = listOf("1.0" to "1.0 (stock)", "1.15" to "1.15x", "1.3" to "1.3x", "1.5" to "1.5x", "2.0" to "2.0x")
+        fun sizeChoice(title: String, summary: String, key: String, token: String) {
+            val value = token.removeSuffix("x")
+            InAppMenu.choice(
+                "UI Customization", title, summary, value,
+                sizes,
+                sizes.associate { (stored, _) -> stored to mapOf(key to stored) },
+                mapOf(key to value),
+            )
+        }
+        InAppMenu.switch(
+            "UI Customization", "Always show speedometer",
+            "Keeps the speedometer on screen from the first drive.",
+            always == true,
+            mapOf(
+                "CONFIG_VALUE_MAP_SHOW_SPEEDOMETER" to "true",
+                "CONFIG_VALUE_MAP_SPEEDOMETER_MIN_SPEED_KPH" to "0",
+                "CONFIG_VALUE_MAP_SHOW_SPEEDOMETER_AFTER_NUM_SESSIONS" to "2147483647",
+            ),
+        )
+        sizeChoice("Speedometer size", "Ring, speed number and unit.", "spd.dial", dialToken)
+        sizeChoice("Speed limit sign size", "The limit sign next to the speedometer.", "spd.sign", signToken)
         val method = resolveAnchor(
             "speedometer cluster", SpeedometerUpdateV2Fingerprint, SpeedometerUpdateFingerprint,
         )
-        if (dialScale == 1f && signScale == 1f) {
-            println("speedometerScalePatch: both at stock size, always-on = ${if (always == true) "on" else "off"}")
-            return@execute
-        }
         method.implementation
             ?: error("speedometerScalePatch: speedometer update method found but has no body")
-        method.addInstructions(0, scaleBlock(dialScale, signScale, method.definingClass))
-        println("speedometerScalePatch: dial ${dialScale}x, sign ${signScale}x")
+        method.addInstructions(0, scaleBlock(dialScale.toString(), signScale.toString(), method.definingClass))
+        println("speedometerScalePatch: dial ${dialScale}x, sign ${signScale}x, always-on = ${always == true}")
     }
 }

@@ -20,7 +20,10 @@ plugins {
     id("app.morphe.patches") version "2.1.1"
 }
 
-// No extension module: the in-app "Forsigh Settings" menu was removed before release, so the bundle
-// ships patches only. Its sources, plus the Waze stubs they needed, are kept in ../parked/ - outside
-// the build, so they are neither compiled nor packaged. If a runtime-toggle screen is ever built, the
-// right surface is Waze's own boolean-config toggle section, not a custom row.
+// The in-app menu is an extension activity, not a row in Waze's settings list. The absolute path
+// is required: extension projects in subfolders do not find a relative ProGuard file.
+settings {
+    extensions {
+        proguardFiles(rootProject.projectDir.resolve("extensions/proguard-rules.pro").absolutePath)
+    }
+}

@@ -44,44 +44,57 @@ val showAllCamerasPatch = bytecodePatch(
     )
 
     execute {
-        recordBoolean(
-                "cam", true,
-                "CONFIG_VALUE_MAP_SHOW_SPEED_CAMS",
-                "CONFIG_VALUE_MAP_SHOW_SPEED_AND_RED_LIGHT_CAMERAS",
-                "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_SPEED_CAMERAS",
-                "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_SPEED_CAMERAS_SOUND_ENABLED",
-            )
-        if (average == true) {
-            recordBoolean(
-                    "cam", true,
-                    "CONFIG_VALUE_AVERAGE_SPEED_CAMERA_FEATURE_ENABLED",
-                    "CONFIG_VALUE_AVERAGE_SPEED_CAMERA_RECOMMENDED_SPEED_ENABLED",
-                )
-        }
-        if (radarSound == true) recordNativeBoolean("cam", true, "CONFIG_VALUE_ALERTS_PLAY_SPEED_CAMERA_SOUND_BELOW_SPEED_LIMIT")
-        if (extraTypes == true) {
-            recordBoolean(
-                    "cam", true,
-                    "CONFIG_VALUE_MAP_SHOW_MOBILE_PHONE_CAMERAS",
-                    "CONFIG_VALUE_MAP_SHOW_BUS_LANE_CAMERAS",
-                    "CONFIG_VALUE_MAP_SHOW_CARPOOL_LANE_CAMERAS",
-                    "CONFIG_VALUE_MAP_SHOW_HOV_LANE_CAMERAS",
-                    "CONFIG_VALUE_MAP_SHOW_NOISE_CAMERAS",
-                )
-        }
-        if (crosswalks == true) {
-            recordBoolean(
-                    "cam", true,
-                    "CONFIG_VALUE_MAP_SHOW_HIGHWAY_CROSSWALK_PERMANENT_HAZARD",
-                    "CONFIG_VALUE_MAP_SHOW_RAISED_CROSSWALK_PERMANENT_HAZARD",
-                    "CONFIG_VALUE_ALERTS_PERMANENT_HAZARD_HIGHWAY_CROSSWALK_SETTING_ENABLED",
-                    "CONFIG_VALUE_ALERTS_PERMANENT_HAZARD_RAISED_CROSSWALK_SETTING_ENABLED",
-                    // the "announced" half of this option: without these two the crosswalks are
-                    // drawn but never warned about, which is what the row promised all along
-                    "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_PERMANENT_HAZARD_HIGHWAY_CROSSWALK",
-                    "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_PERMANENT_HAZARD_RAISED_CROSSWALK",
-                )
-        }
+        InAppMenu.switch(
+            "Map & Alerts", "Cameras",
+            "Speed and red-light cameras, on the map and announced.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_MAP_SHOW_SPEED_CAMS" to "true",
+                "CONFIG_VALUE_MAP_SHOW_SPEED_AND_RED_LIGHT_CAMERAS" to "true",
+                "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_SPEED_CAMERAS" to "true",
+                "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_SPEED_CAMERAS_SOUND_ENABLED" to "true",
+            ),
+        )
+        InAppMenu.switch(
+            "Map & Alerts", "Average-speed zones",
+            "Average-speed zone feature and recommended speed.",
+            average == true,
+            mapOf(
+                "CONFIG_VALUE_AVERAGE_SPEED_CAMERA_FEATURE_ENABLED" to "true",
+                "CONFIG_VALUE_AVERAGE_SPEED_CAMERA_RECOMMENDED_SPEED_ENABLED" to "true",
+            ),
+        )
+        InAppMenu.switch(
+            "Map & Alerts", "Camera chime below the limit",
+            "Plays the camera sound even when you are under the limit.",
+            radarSound == true,
+            mapOf("CONFIG_VALUE_ALERTS_PLAY_SPEED_CAMERA_SOUND_BELOW_SPEED_LIMIT" to "true"),
+        )
+        InAppMenu.switch(
+            "Map & Alerts", "Other camera types",
+            "Phone, bus, carpool, HOV and noise cameras.",
+            extraTypes == true,
+            mapOf(
+                "CONFIG_VALUE_MAP_SHOW_MOBILE_PHONE_CAMERAS" to "true",
+                "CONFIG_VALUE_MAP_SHOW_BUS_LANE_CAMERAS" to "true",
+                "CONFIG_VALUE_MAP_SHOW_CARPOOL_LANE_CAMERAS" to "true",
+                "CONFIG_VALUE_MAP_SHOW_HOV_LANE_CAMERAS" to "true",
+                "CONFIG_VALUE_MAP_SHOW_NOISE_CAMERAS" to "true",
+            ),
+        )
+        InAppMenu.switch(
+            "Map & Alerts", "Crosswalk hazards",
+            "Highway and raised crosswalks drawn on the map and announced.",
+            crosswalks == true,
+            mapOf(
+                "CONFIG_VALUE_MAP_SHOW_HIGHWAY_CROSSWALK_PERMANENT_HAZARD" to "true",
+                "CONFIG_VALUE_MAP_SHOW_RAISED_CROSSWALK_PERMANENT_HAZARD" to "true",
+                "CONFIG_VALUE_ALERTS_PERMANENT_HAZARD_HIGHWAY_CROSSWALK_SETTING_ENABLED" to "true",
+                "CONFIG_VALUE_ALERTS_PERMANENT_HAZARD_RAISED_CROSSWALK_SETTING_ENABLED" to "true",
+                "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_PERMANENT_HAZARD_HIGHWAY_CROSSWALK" to "true",
+                "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_PERMANENT_HAZARD_RAISED_CROSSWALK" to "true",
+            ),
+        )
         println(
             "showAllCamerasPatch: core on, average = ${average == true}, radarSound = ${radarSound == true}, " +
                 "extraTypes = ${extraTypes == true}, crosswalks = ${crosswalks == true}",

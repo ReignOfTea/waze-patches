@@ -1,7 +1,7 @@
 package io.github.forsigh.waze
 
 import app.morphe.patcher.Fingerprint
-import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.string
 import io.github.forsigh.waze.WazeConstants.COMPATIBILITY_WAZE
@@ -58,24 +58,36 @@ val noUsageStatsPatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean(
-            "nus", false,
-            "CONFIG_VALUE_STATS_MODULE_IS_ON",
-            "CONFIG_VALUE_NETWORK_FIREBASE_REPORTING_ENABLED",
-            "CONFIG_VALUE_ANALYTICS_FIREBASE_PERFORMANCE_ENABLED",
-            "CONFIG_VALUE_ANALYTICS_PRIMES_PERFORMANCE_ENABLED",
-            "CONFIG_VALUE_GENERAL_ANDROID_CRASHLYTICS_ENABLED",
-            "CONFIG_VALUE_GENERAL_CRASHLYTICS_LOG_ENABLED",
-            "CONFIG_VALUE_METRIC_KIT_CRASHLYTICS_HANGS_ENABLED",
-            "CONFIG_VALUE_ANALYTICS_ANDROID_MAIN_THREAD_RESPONSIVENESS_MONITORING",
-            "CONFIG_VALUE_ANALYTICS_ANDROID_CPP_THREAD_RESPONSIVENESS_MONITORING",
-            // Was its own row ("No Android Auto telemetry"): the car screen-push latency timing
-            // Waze ships to Firebase once a push is slower than the threshold. Same family, same
-            // mechanism - one toggle instead of two.
-            "CONFIG_VALUE_ANDROID_AUTO_LOG_ON_GET_TEMPLATE_DELAY_TO_FIREBASE",
+        InAppMenu.switch(
+            "Privacy & Updates", "No usage stats",
+            "Stops Waze building, storing and uploading usage statistics. Off lets Waze run them again.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_STATS_MODULE_IS_ON" to "false",
+                "CONFIG_VALUE_NETWORK_FIREBASE_REPORTING_ENABLED" to "false",
+                "CONFIG_VALUE_ANALYTICS_FIREBASE_PERFORMANCE_ENABLED" to "false",
+                "CONFIG_VALUE_ANALYTICS_PRIMES_PERFORMANCE_ENABLED" to "false",
+                "CONFIG_VALUE_GENERAL_ANDROID_CRASHLYTICS_ENABLED" to "false",
+                "CONFIG_VALUE_GENERAL_CRASHLYTICS_LOG_ENABLED" to "false",
+                "CONFIG_VALUE_METRIC_KIT_CRASHLYTICS_HANGS_ENABLED" to "false",
+                "CONFIG_VALUE_ANALYTICS_ANDROID_MAIN_THREAD_RESPONSIVENESS_MONITORING" to "false",
+                "CONFIG_VALUE_ANALYTICS_ANDROID_CPP_THREAD_RESPONSIVENESS_MONITORING" to "false",
+                "CONFIG_VALUE_ANDROID_AUTO_LOG_ON_GET_TEMPLATE_DELAY_TO_FIREBASE" to "false",
+            ),
+            gate = "gate.stats",
         )
 
-        StatsDispatchFingerprint.method.addInstruction(0, "return-void")
+        StatsDispatchFingerprint.method.addInstructions(
+            0,
+            """
+            const-string v0, "gate.stats|1"
+            invoke-static {v0}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->enabled(Ljava/lang/String;)Z
+            move-result v0
+            if-eqz v0, :stats_run
+            return-void
+            :stats_run
+            """.trimIndent(),
+        )
         println("noUsageStatsPatch: stats module off, background monitors off, dispatcher silenced")
     }
 }

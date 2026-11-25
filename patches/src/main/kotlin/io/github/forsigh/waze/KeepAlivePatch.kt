@@ -56,19 +56,47 @@ val keepAlivePatch = bytecodePatch(
 
     execute {
         val w = where ?: "everywhere"
-        val m = minutes ?: 10
+        val m = (minutes ?: 10).toLong().coerceIn(1, 10)
         requireChoice("keepAlivePatch", "where", w, setOf("everywhere", "phone", "auto", "car"))
-
-        if (w == "everywhere" || w == "phone") {
-            recordLong("ka", "CONFIG_VALUE_POWER_BACKGROUND_TIMEOUT_MS" to m * 60_000L)
-        }
-        if (w == "everywhere" || w == "auto") {
-            recordBoolean("ka", true, "CONFIG_VALUE_AAP_SHUTDOWN_DEFERRING_ENABLED")
-            recordLong("ka", "CONFIG_VALUE_AAP_SHUTDOWN_DELAY_ON_MAIN_SERVICE_DESTROY_MS" to m * 60_000L)
-        }
-        if (w == "everywhere" || w == "car") {
-            recordBoolean("ka", true, "CONFIG_VALUE_AAOS_KEEP_APP_ALIVE_ON_MAIN_SERVICE_DESTROY")
-        }
+        val phone = "CONFIG_VALUE_POWER_BACKGROUND_TIMEOUT_MS"
+        val defer = "CONFIG_VALUE_AAP_SHUTDOWN_DEFERRING_ENABLED"
+        val delay = "CONFIG_VALUE_AAP_SHUTDOWN_DELAY_ON_MAIN_SERVICE_DESTROY_MS"
+        val car = "CONFIG_VALUE_AAOS_KEEP_APP_ALIVE_ON_MAIN_SERVICE_DESTROY"
+        val ms = (m * 60_000L).toString()
+        fun surface(phoneOn: Boolean, autoOn: Boolean, carOn: Boolean) = mapOf(
+            phone to if (phoneOn) "\$experimental.minutes.alive*60000" else "stock",
+            defer to if (autoOn) "true" else "stock",
+            delay to if (autoOn) "\$experimental.minutes.alive*60000" else "stock",
+            car to if (carOn) "true" else "stock",
+        )
+        InAppMenu.number(
+            "Experimental", "Minutes alive",
+            "Phone background timeout and the Android Auto shutdown delay. Waze's own cap is 10.",
+            m, 1, 10,
+        )
+        InAppMenu.choice(
+            "Experimental", "Keep Waze alive",
+            "Which surface stays alive. Minutes alive is the row above.",
+            w,
+            listOf(
+                "everywhere" to "Everywhere",
+                "phone" to "Phone only",
+                "auto" to "Android Auto only",
+                "car" to "Car unit only",
+            ),
+            mapOf(
+                "everywhere" to surface(true, true, true),
+                "phone" to surface(true, false, false),
+                "auto" to surface(false, true, false),
+                "car" to surface(false, false, true),
+            ),
+            mapOf(
+                phone to if (w == "everywhere" || w == "phone") ms else null,
+                defer to if (w == "everywhere" || w == "auto") "true" else null,
+                delay to if (w == "everywhere" || w == "auto") ms else null,
+                car to if (w == "everywhere" || w == "car") "true" else null,
+            ),
+        )
 
         println("keepAlivePatch: $w, $m minute(s)")
     }

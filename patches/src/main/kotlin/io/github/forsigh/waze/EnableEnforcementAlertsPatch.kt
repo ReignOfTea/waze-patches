@@ -23,12 +23,15 @@ val enableEnforcementAlertsPatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean(
-                "enf", true,
-                "CONFIG_VALUE_ALERTS_ENABLE_ENFORCEMENT_ALERTS",
-            )
-        // The police flag is a String (com/waze/config/d) key: "yes" switches police alerts on.
-        recordString("enf", "CONFIG_VALUE_ALERTS_ENABLE_ENFORCEMENT_POLICE" to "yes")
+        InAppMenu.switch(
+            "Map & Alerts", "Police and enforcement alerts",
+            "Turns police and enforcement alerts on.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_ALERTS_ENABLE_ENFORCEMENT_ALERTS" to "true",
+                "CONFIG_VALUE_ALERTS_ENABLE_ENFORCEMENT_POLICE" to "yes",
+            ),
+        )
         println("enableEnforcementAlertsPatch: police and enforcement alerts forced on")
     }
 }

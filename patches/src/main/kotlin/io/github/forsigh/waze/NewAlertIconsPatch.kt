@@ -38,6 +38,7 @@ val newAlertIconsPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_WAZE)
     category("Experimental")
+    dependsOn(forsighSettingsPatch)
 
     execute {
         val method = ConfigSyncedFingerprint.method
@@ -56,15 +57,25 @@ val newAlertIconsPatch = bytecodePatch(
             )
         }
 
+        InAppMenu.gate(
+            "Experimental", "New alert icons",
+            "On uses Waze's newer alert icons. Off leaves the icons it shipped with.",
+            true, "gate.newicons",
+        )
         method.addInstructions(
             tail,
             """
+                const-string v0, "gate.newicons|1"
+                invoke-static {v0}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->enabled(Ljava/lang/String;)Z
+                move-result v0
+                if-eqz v0, :skip_new_icons
                 check-cast p0, Lcom/waze/ConfigManager;
                 sget-object v0, Lcom/waze/config/ConfigValues;->CONFIG_VALUE_ALERTS_NEW_ALERT_ICONS_ENABLED:Lcom/waze/config/b;
                 invoke-virtual {v0}, Lcom/waze/config/f;->e()I
                 move-result v0
                 const/4 v1, 0x1
                 invoke-virtual {p0, v0, v1}, Lcom/waze/ConfigManager;->setConfigValueBoolNTV(IZ)V
+                :skip_new_icons
             """.trimIndent(),
         )
 

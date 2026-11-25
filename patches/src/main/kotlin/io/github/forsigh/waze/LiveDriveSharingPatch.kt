@@ -24,10 +24,14 @@ val liveDriveSharingPatch = bytecodePatch(
     execute {
         // The map entry point ANDs these two; forcing only the feature flag left the button hidden
         // whenever the server's entry-point switch is off.
-        recordBoolean(
-            "lds", true,
-            "CONFIG_VALUE_SHARE_DRIVE_FEATURE_ENABLED",
-            "CONFIG_VALUE_SHARE_DRIVE_BUTTON_BACK_ENTRY_POINT_ENABLED",
+        InAppMenu.switch(
+            "Driving & Voice", "Live drive sharing",
+            "Adds the hidden share-your-drive link.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_SHARE_DRIVE_FEATURE_ENABLED" to "true",
+                "CONFIG_VALUE_SHARE_DRIVE_BUTTON_BACK_ENTRY_POINT_ENABLED" to "true",
+            ),
         )
         println("liveDriveSharingPatch: share drive enabled")
     }

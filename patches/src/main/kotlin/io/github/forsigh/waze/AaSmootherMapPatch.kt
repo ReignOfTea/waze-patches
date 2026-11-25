@@ -37,11 +37,15 @@ val aaSmootherMapPatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean(
-            "aas", true,
-            "CONFIG_VALUE_CAR_LIB_CAR_GPS_FILTERING_ENABLED",
-            "CONFIG_VALUE_GPS_ALIGN_AAP_AND_DEVICE_UPDATE_RATE",
-            "CONFIG_VALUE_CAR_LIB_LISTEN_TO_CAR_COMPASS",
+        InAppMenu.switch(
+            "Android Auto", "Smoother Android Auto map",
+            "Car GPS filtering, update rate and the car compass.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_CAR_LIB_CAR_GPS_FILTERING_ENABLED" to "true",
+                "CONFIG_VALUE_GPS_ALIGN_AAP_AND_DEVICE_UPDATE_RATE" to "true",
+                "CONFIG_VALUE_CAR_LIB_LISTEN_TO_CAR_COMPASS" to "true",
+            ),
         )
         println("aaSmootherMapPatch: forcing car-GPS filtering, normal car-GPS rate and car compass")
     }

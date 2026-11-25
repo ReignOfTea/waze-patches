@@ -38,8 +38,18 @@ val extraMapInfoPatch = bytecodePatch(
     )
 
     execute {
-        if (compass == true) recordBoolean("emi", true, "CONFIG_VALUE_MAP_ICONS_SHOW_COMPASS")
-        if (tolls == true) recordBoolean("emi", true, "CONFIG_VALUE_ROUTING_SHOW_TOLL_PRICE")
+        InAppMenu.switch(
+            "Map & Alerts", "Always show compass",
+            "Keeps the compass on the map. Off leaves Waze's own behaviour.",
+            compass == true,
+            mapOf("CONFIG_VALUE_MAP_ICONS_SHOW_COMPASS" to "true"),
+        )
+        InAppMenu.switch(
+            "Map & Alerts", "Toll price on route",
+            "Shows what the toll costs on each route. Off leaves it hidden.",
+            tolls == true,
+            mapOf("CONFIG_VALUE_ROUTING_SHOW_TOLL_PRICE" to "true"),
+        )
         println("extraMapInfoPatch: compass = ${if (compass == true) "on" else "stock"}, tolls = ${if (tolls == true) "on" else "stock"}")
     }
 }

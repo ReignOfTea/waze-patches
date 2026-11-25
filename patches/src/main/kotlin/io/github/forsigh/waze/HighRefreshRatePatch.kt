@@ -1,12 +1,12 @@
 package io.github.forsigh.waze
 
 import app.morphe.patcher.Fingerprint
-import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.removeInstructions
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.intOption
 import com.android.tools.smali.dexlib2.Opcode
-import com.android.tools.smali.dexlib2.builder.instruction.BuilderInstruction21lh
 import com.android.tools.smali.dexlib2.iface.instruction.formats.Instruction21lh
 import io.github.forsigh.waze.WazeConstants.COMPATIBILITY_WAZE
 
@@ -50,6 +50,7 @@ val highRefreshRatePatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_WAZE)
     category("UI Customization")
+    dependsOn(forsighSettingsPatch)
 
     val targetRefreshRate by intOption(
         "targetRefreshRate", 120,
@@ -58,17 +59,18 @@ val highRefreshRatePatch = bytecodePatch(
     )
 
     execute {
-        val method = DisplayModeCeilingFingerprint.method
         val rate = targetRefreshRate ?: 120
-        val replacement = java.lang.Double.doubleToRawLongBits(rate.toDouble())
-        // BuilderInstruction21lh stores only the top 16 bits of the double: 90 becomes 88, 165
-        // becomes 160 - a silently different refresh rate. Refuse instead of rounding.
-        if (replacement and 0x0000FFFFFFFFFFFFL != 0L) {
-            throw PatchException(
-                "highRefreshRatePatch: ${rate}Hz cannot be encoded by const-wide/high16 " +
-                    "(only rates whose low 48 bits are zero, e.g. 60, 120, 144); pick another value",
-            )
+        if (rate < 60 || rate > 240) {
+            throw PatchException("highRefreshRatePatch: ${rate}Hz is outside 60..240")
         }
+        InAppMenu.number(
+            "UI Customization", "Refresh rate ceiling",
+            "Hz. 60 is Waze's own ceiling. 120 suits most phones; lower it if the phone gets hot.",
+            rate.toLong(), 60, 240,
+            keys = listOf("ui.refresh"),
+            baked = rate.toLong(),
+        )
+        val method = DisplayModeCeilingFingerprint.method
         val implementation = method.implementation
             ?: error(
                 "highRefreshRatePatch: the display-mode method was found but has no implementation; " +
@@ -100,9 +102,15 @@ val highRefreshRatePatch = bytecodePatch(
 
         sites.asReversed().forEach { index ->
             val old = instructions[index] as Instruction21lh
-            method.replaceInstruction(
+            val register = old.registerA
+            method.removeInstructions(index, 1)
+            method.addInstructions(
                 index,
-                BuilderInstruction21lh(Opcode.CONST_WIDE_HIGH16, old.registerA, replacement),
+                """
+                const/16 v$register, $rate
+                invoke-static {v$register}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->refreshHz(I)D
+                move-result-wide v$register
+                """.trimIndent(),
             )
         }
 

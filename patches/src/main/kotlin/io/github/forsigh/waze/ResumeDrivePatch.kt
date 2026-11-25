@@ -31,6 +31,7 @@ val resumeDrivePromptPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_WAZE)
     category("Driving & Voice")
+    dependsOn(forsighSettingsPatch)
 
     val mode by stringOption(
         "mode", "hide",
@@ -45,21 +46,31 @@ val resumeDrivePromptPatch = bytecodePatch(
     execute {
         val chosen = mode ?: "hide"
         requireChoice("resumeDrivePromptPatch", "mode", chosen, setOf("hide", "stock"))
-        if (chosen == "stock") {
-            println("resumeDrivePromptPatch: stock selected, nothing to do")
-            return@execute
-        }
+        val hide = chosen == "hide"
+        InAppMenu.gate(
+            "Driving & Voice", "Hide resume drive prompt",
+            "On hides the resume card. Off lets Waze offer the last trip again.",
+            hide, "gate.resume",
+        )
 
         val fingerprint = Fingerprint(
             definingClass = "Lcom/waze/resume_drive/ResumeDriveNativeManagerBase;",
             name = "handleResumeDriveCallbackResultJNI",
             returnType = "V",
         )
-        // `fingerprint.method` throws when the class or method is gone, so a moved anchor fails the
-        // run loudly instead of reporting a prompt that was never hidden.
         val method = fingerprint.method
-
-        method.addInstructions(0, "return-void")
-        println("resumeDrivePromptPatch: resume callback silenced at ${method.definingClass}->${method.name}")
+        val fallback = if (hide) "1" else "0"
+        method.addInstructions(
+            0,
+            """
+            const-string v0, "gate.resume|$fallback"
+            invoke-static {v0}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->enabled(Ljava/lang/String;)Z
+            move-result v0
+            if-eqz v0, :resume_stock
+            return-void
+            :resume_stock
+            """.trimIndent(),
+        )
+        println("resumeDrivePromptPatch: resume callback gated, default ${if (hide) "hidden" else "stock"}")
     }
 }

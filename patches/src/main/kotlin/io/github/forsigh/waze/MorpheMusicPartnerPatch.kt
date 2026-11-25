@@ -339,11 +339,14 @@ val morpheMusicPartnerPatch = bytecodePatch(
         // server-controlled, so on devices whose config has them off the entry (and every stock
         // partner) never surfaces. Forced here, read-path, so the feature the row promises does not
         // depend on a server rollout. Devices that already have them on are unaffected.
-        recordBoolean(
-            "morpheMusicPartner",
+        InAppMenu.switch(
+            "Driving & Voice", "Audio partner",
+            "Lets the patched music app appear in Waze's audio player. Which app that is stays what was set while patching.",
             true,
-            "CONFIG_VALUE_AUDIO_EXTENSION_SDK_FEATURE_ENABLED",
-            "CONFIG_VALUE_AUDIO_EXTENSION_SDK_ON",
+            mapOf(
+                "CONFIG_VALUE_AUDIO_EXTENSION_SDK_FEATURE_ENABLED" to "true",
+                "CONFIG_VALUE_AUDIO_EXTENSION_SDK_ON" to "true",
+            ),
         )
     }
 }

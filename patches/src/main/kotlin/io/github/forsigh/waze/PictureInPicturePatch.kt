@@ -60,6 +60,7 @@ val pictureInPicturePatch = bytecodePatch(
     default = false,
 ) {
     compatibleWith(COMPATIBILITY_WAZE)
+    dependsOn(forsighSettingsPatch)
     category("Experimental")
 
     dependsOn(pipManifestPatch)
@@ -68,7 +69,11 @@ val pictureInPicturePatch = bytecodePatch(
     execute {
         // Auto-enter is on unconditionally: the route-gated variant never fired on the phone, so the
         // row floats every time Waze is left. Waze still only shows the window while it is on screen.
-        val gate = "const/4 v1, 0x1"
+        InAppMenu.gate(
+            "Experimental", "Picture-in-picture",
+            "On floats Waze when you leave it. Off leaves it in the background. The window shape stays as patched.",
+            true, "gate.pip",
+        )
 
         val uid = mutableClassDefBy(UID_ACTIVITY)
         if (uid.methods.any { it.name == PIP_HELPER_NAME }) {
@@ -90,7 +95,13 @@ val pictureInPicturePatch = bytecodePatch(
         helper.addInstructions(
             0,
             """
-            $gate
+            const-string v0, "gate.pip|1"
+            invoke-static {v0}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->enabled(Ljava/lang/String;)Z
+            move-result v0
+            if-nez v0, :pip_on
+            return-void
+            :pip_on
+            const/4 v1, 0x1
             new-instance v2, Landroid/app/PictureInPictureParams${'$'}Builder;
             invoke-direct {v2}, Landroid/app/PictureInPictureParams${'$'}Builder;-><init>()V
             new-instance v3, Landroid/util/Rational;

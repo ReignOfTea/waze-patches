@@ -19,13 +19,15 @@ val laneGuidancePatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean(
-                "lan", true,
-                "CONFIG_VALUE_LANE_GUIDANCE_ENABLED",
-                "CONFIG_VALUE_LANE_GUIDANCE_CONTINUE_STRAIGHT_ENABLED",
-                // The consumer ANDs three gates; without this one lane guidance stays hidden even
-                // when the other two are true (it is the per-user switch Waze stores server-side).
-                "CONFIG_VALUE_LANE_GUIDANCE_USER_ENABLED",
-            )
+        InAppMenu.switch(
+            "Map & Alerts", "Lane guidance",
+            "Shows lane guidance, including straight-ahead hints.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_LANE_GUIDANCE_ENABLED" to "true",
+                "CONFIG_VALUE_LANE_GUIDANCE_CONTINUE_STRAIGHT_ENABLED" to "true",
+                "CONFIG_VALUE_LANE_GUIDANCE_USER_ENABLED" to "true",
+            ),
+        )
     }
 }

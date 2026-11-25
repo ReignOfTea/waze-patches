@@ -56,20 +56,44 @@ val speedLimitsPatch = bytecodePatch(
     )
 
     execute {
-        if (alwaysOn == true) {
-            recordBoolean("slm", true, "CONFIG_VALUE_MAP_SPEEDOMETER_SPEED_LIMIT_ENABLED")
-            // The Boolean only turns the feature on. WHEN the sign is drawn comes from this String
-            // key: "no", "yes" (only when over the limit) or "always".
-            recordString("slm", "CONFIG_VALUE_MAP_SPEEDOMETER_SPEED_LIMIT_USER_ENABLED" to "always")
-        }
-        if (decrease == true) {
-            recordBoolean("slm", true, "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_SPEED_LIMIT_DECREASE")
-            recordLong("slm", "CONFIG_VALUE_ALERTS_SPEED_LIMIT_DECREASE_ALERT_DISTANCE_METERS" to 1000L)
-        }
-        if (report == true) recordBoolean("slm", true, "CONFIG_VALUE_MAP_SPEEDOMETER_SPEED_LIMIT_OVERRIDE_ENABLED")
         val chosen = style ?: "stock"
         requireChoice("speedLimitsPatch", "style", chosen, setOf("stock", "us", "world"))
-        if (chosen != "stock") recordString("slm", "CONFIG_VALUE_MAP_SPEEDOMETER_STYLE" to chosen)
+        InAppMenu.switch(
+            "Map & Alerts", "Speed limit sign always shown",
+            "Keeps the limit sign on screen when you are under the limit.",
+            alwaysOn == true,
+            mapOf(
+                "CONFIG_VALUE_MAP_SPEEDOMETER_SPEED_LIMIT_ENABLED" to "true",
+                "CONFIG_VALUE_MAP_SPEEDOMETER_SPEED_LIMIT_USER_ENABLED" to "always",
+            ),
+        )
+        InAppMenu.switch(
+            "Map & Alerts", "Limit-drop warnings",
+            "Warns when the limit falls, 1000 m ahead.",
+            decrease == true,
+            mapOf(
+                "CONFIG_VALUE_NOTIFICATIONS_ON_ROUTE_SPEED_LIMIT_DECREASE" to "true",
+                "CONFIG_VALUE_ALERTS_SPEED_LIMIT_DECREASE_ALERT_DISTANCE_METERS" to "1000",
+            ),
+        )
+        InAppMenu.switch(
+            "Map & Alerts", "Report the speed limit",
+            "Adds the report-limit option.",
+            report == true,
+            mapOf("CONFIG_VALUE_MAP_SPEEDOMETER_SPEED_LIMIT_OVERRIDE_ENABLED" to "true"),
+        )
+        InAppMenu.choice(
+            "Map & Alerts", "Speed limit sign style",
+            "Waze picks one by country. Stock leaves that choice alone.",
+            chosen,
+            listOf("stock" to "Stock (by country)", "us" to "US (white rectangle)", "world" to "World (red circle)"),
+            mapOf(
+                "stock" to mapOf("CONFIG_VALUE_MAP_SPEEDOMETER_STYLE" to "stock"),
+                "us" to mapOf("CONFIG_VALUE_MAP_SPEEDOMETER_STYLE" to "us"),
+                "world" to mapOf("CONFIG_VALUE_MAP_SPEEDOMETER_STYLE" to "world"),
+            ),
+            mapOf("CONFIG_VALUE_MAP_SPEEDOMETER_STYLE" to chosen.takeUnless { it == "stock" }),
+        )
         println("speedLimitsPatch: alwaysOn = ${alwaysOn == true}, decrease = ${decrease == true}, report = ${report == true}, style = $chosen")
     }
 }

@@ -13,21 +13,35 @@ package io.github.forsigh.waze
  * `prefix` still namespaces the labels so blocks for different getters cannot collide.
  */
 
-/** smali block force-returning a value per Boolean key. Injected into the Boolean getter. */
-internal fun forceBoolean(prefix: String, entries: Map<String, Boolean>): String {
+private const val SETTINGS = "Lio/github/forsigh/waze/extension/settings/ForsighSettings;"
+
+/**
+ * `key\u001fhasBaked\u001fbaked`, as a smali string literal. The runtime resolver returns the stored
+ * preference, the baked value when nothing is stored, or null when the user picked stock — null
+ * falls through to Waze's original getter.
+ */
+internal fun settingsSpec(key: String, baked: String?): String {
+    val flag = if (baked == null) "0" else "1"
+    val value = (baked ?: "").replace("\\", "\\\\").replace("\"", "\\\"")
+    return "$key\\u001f$flag\\u001f$value"
+}
+
+/**
+ * One stanza per key. A null resolve result branches forward to the next key, which then fails its
+ * own comparison and lands in the original getter. Targets stay a handful of instructions ahead:
+ * a long jump to a shared table is what patcher 2.3.0 resolved into the middle of an instruction.
+ */
+internal fun forceBoolean(prefix: String, entries: Map<String, Boolean?>): String {
     val keys = entries.keys.toList()
     return buildString {
-        // One self-contained stanza per key: a short forward branch over its own return, no shared
-        // handler table and no trailing goto. The patcher resolves a block's labels when it is
-        // added; a long jump to a table at the far end of a big block is what a host rebuilt on
-        // patcher 2.3.0 resolved into the middle of an instruction (VerifyError: pc not at an
-        // instruction start). Keeping every target 4 instructions ahead removes that reach.
         keys.forEachIndexed { i, key ->
-            val boxed = if (entries.getValue(key)) "Ljava/lang/Boolean;->TRUE:Ljava/lang/Boolean;"
-                        else "Ljava/lang/Boolean;->FALSE:Ljava/lang/Boolean;"
+            val spec = settingsSpec(key, entries[key]?.toString())
             append("sget-object v0, Lcom/waze/config/ConfigValues;->$key:Lcom/waze/config/b;\n")
             append("if-ne p0, v0, :${prefix}_b$i\n")
-            append("sget-object v0, $boxed\n")
+            append("const-string v0, \"$spec\"\n")
+            append("invoke-static {v0}, $SETTINGS->resolveBoolean(Ljava/lang/String;)Ljava/lang/Boolean;\n")
+            append("move-result-object v0\n")
+            append("if-eqz v0, :${prefix}_b$i\n")
             append("return-object v0\n")
             append(":${prefix}_b$i\n")
         }
@@ -35,24 +49,17 @@ internal fun forceBoolean(prefix: String, entries: Map<String, Boolean>): String
 }
 
 /** smali block force-returning a Long per key. Injected into the Long getter. */
-internal fun forceLong(prefix: String, entries: Map<String, Long>): String {
+internal fun forceLong(prefix: String, entries: Map<String, Long?>): String {
     val keys = entries.keys.toList()
     return buildString {
         keys.forEachIndexed { i, key ->
-            val value = entries.getValue(key)
-            // const-wide/16 carries a signed 16-bit literal, /32 a signed 32-bit one; anything
-            // beyond needs the full form. Emitting the wrong width is invalid smali and aborts
-            // the whole patch with a classDef-null crash, so pick by value.
-            val load = when {
-                value in Short.MIN_VALUE.toLong()..Short.MAX_VALUE.toLong() -> "const-wide/16 v0, $value"
-                value in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() -> "const-wide/32 v0, $value"
-                else -> "const-wide v0, ${value}L"
-            }
+            val spec = settingsSpec(key, entries[key]?.toString())
             append("sget-object v0, Lcom/waze/config/ConfigValues;->$key:Lcom/waze/config/c;\n")
             append("if-ne p0, v0, :${prefix}_l$i\n")
-            append("$load\n")
-            append("invoke-static {v0, v1}, Ljava/lang/Long;->valueOf(J)Ljava/lang/Long;\n")
+            append("const-string v0, \"$spec\"\n")
+            append("invoke-static {v0}, $SETTINGS->resolveLong(Ljava/lang/String;)Ljava/lang/Long;\n")
             append("move-result-object v0\n")
+            append("if-eqz v0, :${prefix}_l$i\n")
             append("return-object v0\n")
             append(":${prefix}_l$i\n")
         }
@@ -60,13 +67,17 @@ internal fun forceLong(prefix: String, entries: Map<String, Long>): String {
 }
 
 /** smali block force-returning a String per key. Injected into the String getter. */
-internal fun forceString(prefix: String, entries: Map<String, String>): String {
+internal fun forceString(prefix: String, entries: Map<String, String?>): String {
     val keys = entries.keys.toList()
     return buildString {
         keys.forEachIndexed { i, key ->
+            val spec = settingsSpec(key, entries[key])
             append("sget-object v0, Lcom/waze/config/ConfigValues;->$key:Lcom/waze/config/d;\n")
             append("if-ne p0, v0, :${prefix}_s$i\n")
-            append("const-string v0, \"${entries.getValue(key)}\"\n")
+            append("const-string v0, \"$spec\"\n")
+            append("invoke-static {v0}, $SETTINGS->resolveString(Ljava/lang/String;)Ljava/lang/String;\n")
+            append("move-result-object v0\n")
+            append("if-eqz v0, :${prefix}_s$i\n")
             append("return-object v0\n")
             append(":${prefix}_s$i\n")
         }
@@ -114,18 +125,27 @@ internal fun recordString(patchId: String, vararg entries: Pair<String, String>)
  * `ConfigManager.isReady()` is checked first: the sync callbacks also fire before the native layer
  * is up, and the setter throws there.
  */
-internal fun nativeSyncBlock(entries: Map<String, Boolean>): String = buildString {
+internal fun nativeSyncBlock(entries: Map<String, Boolean?>): String = buildString {
     appendLine("invoke-static {}, Lcom/waze/ConfigManager;->isReady()Z")
     appendLine("move-result v0")
     appendLine("if-eqz v0, :native_done")
     appendLine("invoke-static {}, Lcom/waze/ConfigManager;->getInstance()Lcom/waze/ConfigManager;")
     appendLine("move-result-object v0")
-    appendLine("if-nez v0, :native_done")
-    entries.forEach { (key, value) ->
+    // Skip the writes when the manager or a key is absent. (An earlier block branched on if-nez,
+    // which skipped the writes precisely when the references were present.)
+    appendLine("if-eqz v0, :native_done")
+    entries.entries.forEachIndexed { i, (key, value) ->
+        val spec = settingsSpec(key, value?.toString())
         appendLine("sget-object v1, Lcom/waze/config/ConfigValues;->$key:Lcom/waze/config/b;")
-        appendLine("if-nez v1, :native_done")
-        appendLine("const/4 v2, ${if (value) 1 else 0}")
+        appendLine("if-eqz v1, :native_b$i")
+        appendLine("const-string v2, \"$spec\"")
+        appendLine("invoke-static {v2}, $SETTINGS->resolveBoolean(Ljava/lang/String;)Ljava/lang/Boolean;")
+        appendLine("move-result-object v2")
+        appendLine("if-eqz v2, :native_b$i")
+        appendLine("invoke-virtual {v2}, Ljava/lang/Boolean;->booleanValue()Z")
+        appendLine("move-result v2")
         appendLine("invoke-virtual {v0, v1, v2}, Lcom/waze/ConfigManager;->setConfigValueBool(Lcom/waze/config/b;Z)V")
+        appendLine(":native_b$i")
     }
     appendLine(":native_done")
     appendLine("return-void")
@@ -147,20 +167,25 @@ internal fun recordNativeBoolean(prefix: String, value: Boolean, vararg keys: St
  *
  * Registers: v0 = ConfigManager, v1 = key, v2/v3 = value.
  */
-internal fun nativeLongSyncBlock(entries: Map<String, Long>): String = buildString {
+internal fun nativeLongSyncBlock(entries: Map<String, Long?>): String = buildString {
     appendLine("invoke-static {}, Lcom/waze/ConfigManager;->isReady()Z")
     appendLine("move-result v0")
     appendLine("if-eqz v0, :nlong_done")
     appendLine("invoke-static {}, Lcom/waze/ConfigManager;->getInstance()Lcom/waze/ConfigManager;")
     appendLine("move-result-object v0")
-    appendLine("if-nez v0, :nlong_done")
-    entries.forEach { (key, value) ->
+    appendLine("if-eqz v0, :nlong_done")
+    entries.entries.forEachIndexed { i, (key, value) ->
+        val spec = settingsSpec(key, value?.toString())
         appendLine("sget-object v1, Lcom/waze/config/ConfigValues;->$key:Lcom/waze/config/c;")
-        appendLine("if-nez v1, :nlong_done")
-        val load = if (value in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) "const-wide/32 v2, $value"
-                   else "const-wide v2, ${value}L"
-        appendLine(load)
+        appendLine("if-eqz v1, :nlong_b$i")
+        appendLine("const-string v2, \"$spec\"")
+        appendLine("invoke-static {v2}, $SETTINGS->resolveLong(Ljava/lang/String;)Ljava/lang/Long;")
+        appendLine("move-result-object v2")
+        appendLine("if-eqz v2, :nlong_b$i")
+        appendLine("invoke-virtual {v2}, Ljava/lang/Long;->longValue()J")
+        appendLine("move-result-wide v2")
         appendLine("invoke-virtual {v0, v1, v2, v3}, Lcom/waze/ConfigManager;->setConfigValueLong(Lcom/waze/config/c;J)V")
+        appendLine(":nlong_b$i")
     }
     appendLine(":nlong_done")
     appendLine("return-void")
@@ -173,18 +198,23 @@ internal fun recordNativeLong(prefix: String, vararg entries: Pair<String, Long>
 }
 
 /** smali block writing String keys into the native config store. v0 = ConfigManager, v1 = key, v2 = value. */
-internal fun nativeStringSyncBlock(entries: Map<String, String>): String = buildString {
+internal fun nativeStringSyncBlock(entries: Map<String, String?>): String = buildString {
     appendLine("invoke-static {}, Lcom/waze/ConfigManager;->isReady()Z")
     appendLine("move-result v0")
     appendLine("if-eqz v0, :nstr_done")
     appendLine("invoke-static {}, Lcom/waze/ConfigManager;->getInstance()Lcom/waze/ConfigManager;")
     appendLine("move-result-object v0")
-    appendLine("if-nez v0, :nstr_done")
-    entries.forEach { (key, value) ->
+    appendLine("if-eqz v0, :nstr_done")
+    entries.entries.forEachIndexed { i, (key, value) ->
+        val spec = settingsSpec(key, value)
         appendLine("sget-object v1, Lcom/waze/config/ConfigValues;->$key:Lcom/waze/config/d;")
-        appendLine("if-nez v1, :nstr_done")
-        appendLine("const-string v2, \"${value.replace("\"", "\\\"")}\"")
+        appendLine("if-eqz v1, :nstr_b$i")
+        appendLine("const-string v2, \"$spec\"")
+        appendLine("invoke-static {v2}, $SETTINGS->resolveString(Ljava/lang/String;)Ljava/lang/String;")
+        appendLine("move-result-object v2")
+        appendLine("if-eqz v2, :nstr_b$i")
         appendLine("invoke-virtual {v0, v1, v2}, Lcom/waze/ConfigManager;->setConfigValueString(Lcom/waze/config/d;Ljava/lang/String;)V")
+        appendLine(":nstr_b$i")
     }
     appendLine(":nstr_done")
     appendLine("return-void")

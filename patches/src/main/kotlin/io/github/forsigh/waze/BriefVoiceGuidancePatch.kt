@@ -19,10 +19,14 @@ val briefVoiceGuidancePatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean(
-                "brv", true,
-                "CONFIG_VALUE_BRIEF_VOICE_GUIDANCE_MODE_ENABLED",
-                "CONFIG_VALUE_BRIEF_VOICE_GUIDANCE_MODE_FEATURE_ENABLED",
-            )
+        InAppMenu.switch(
+            "Driving & Voice", "Brief voice guidance",
+            "Shorter spoken directions.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_BRIEF_VOICE_GUIDANCE_MODE_ENABLED" to "true",
+                "CONFIG_VALUE_BRIEF_VOICE_GUIDANCE_MODE_FEATURE_ENABLED" to "true",
+            ),
+        )
     }
 }

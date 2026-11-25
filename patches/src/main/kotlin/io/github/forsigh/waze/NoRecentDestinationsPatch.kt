@@ -73,6 +73,7 @@ val noRecentDestinationsPatch = bytecodePatch(
         ),
     )
     category("Privacy & Updates")
+    dependsOn(forsighSettingsPatch)
 
     execute {
         // Pick by CONTENT, not by "first fingerprint that binds": on 5.27.90.900 the old dispatcher
@@ -124,14 +125,24 @@ val noRecentDestinationsPatch = bytecodePatch(
         // and the callers got null. Take the destination register from the instruction we remove.
         val dest = (next as? OneRegisterInstruction)?.registerA
             ?: throw PatchException("noRecentDestinations: the recents read has no destination register")
-        method.removeInstructions(site, 2)
+        val probe = if (dest == 0) 1 else 0
+        InAppMenu.gate(
+            "Privacy & Updates", "Hide recent destinations",
+            "On keeps navigated places out of every recent list. Off shows them again. Waze still stores them.",
+            true, "gate.recents",
+        )
         method.addInstructions(
-            site,
+            site + 2,
             """
+                const-string v$probe, "gate.recents|1"
+                invoke-static {v$probe}, Lio/github/forsigh/waze/extension/settings/ForsighSettings;->enabled(Ljava/lang/String;)Z
+                move-result v$probe
+                if-eqz v$probe, :recents_keep
                 const/4 v$dest, 0x0
                 new-array v$dest, v$dest, [B
+                :recents_keep
             """.trimIndent(),
         )
-        println("noRecentDestinations: recent-history read returns an empty byte[] in v$dest at instruction $site")
+        println("noRecentDestinations: recent-history read can return an empty byte[] in v$dest")
     }
 }

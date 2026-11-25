@@ -22,7 +22,12 @@ val showFpsPatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean("fps", true, "CONFIG_VALUE_MAP_SHOW_FPS_ENABLED")
+        InAppMenu.switch(
+            "Experimental", "Show FPS counter",
+            "Shows the frame-rate counter.",
+            true,
+            mapOf("CONFIG_VALUE_MAP_SHOW_FPS_ENABLED" to "true"),
+        )
         println("showFpsPatch: built-in FPS counter forced on")
     }
 }

@@ -104,25 +104,50 @@ val policeAlertDistancePatch = bytecodePatch(
                 key to (wanted[i].takeIf { it > 0 }?.toLong() ?: value)
             }
         }
-        if (effective.isNotEmpty()) {
-            recordLong("dst", *effective.toTypedArray())
-            // The Java getter is only half the story: Waze's alert engine reads policy from the
-            // native config store, so the same numbers go there on every sync. Without this the
-            // row applied cleanly and changed nothing on device.
-            recordNativeLong("dst", *effective.toTypedArray())
+        val trigger = "CONFIG_VALUE_ALERTS_MAX_TRIGGER_TIME_ENABLED"
+        val camerasKey = "CONFIG_VALUE_ALERTS_ALERTER_ALERT_DISTANCE"
+        fun levelWrites(name: String): Map<String, String> {
+            if (name == "Standard") {
+                return keys.associateWith { "stock" } + (trigger to "stock")
+            }
+            val nums = tables.getValue(name)
+            return keys.mapIndexed { i, key -> key to nums[i].toString() }.toMap() + (trigger to "false")
         }
-        // Waze's server turns this on, and then an alert is only announced as far ahead as the car
-        // drives in 22 s (30 s for police, 200 m minimum) - so any distance beyond that never showed.
-        // Forcing it off is what makes the table above reachable. Approach taken from
-        // bearinmindcat/morphe-patches (issue #157 there), which hit the same wall.
-        if (chosen != "Standard") {
-            recordNativeBoolean("dst", false, "CONFIG_VALUE_ALERTS_MAX_TRIGGER_TIME_ENABLED")
-        }
-        if ((cameras ?: 0) > 0) {
-            recordLong("dst", "CONFIG_VALUE_ALERTS_ALERTER_ALERT_DISTANCE" to cameras!!.toLong())
-            recordNativeLong("dst", "CONFIG_VALUE_ALERTS_ALERTER_ALERT_DISTANCE" to cameras!!.toLong())
-        }
-        recordBoolean("dst", bumps ?: false, "CONFIG_VALUE_MAP_SHOW_SPEED_BUMPS_PERMANENT_HAZARD")
+        InAppMenu.choice(
+            "Map & Alerts", "Alert distance level",
+            "Moderate warns about 1.5x earlier, Heavier about 2.5x. Standard leaves Waze's distances. " +
+                "Picking a level here replaces per-alert numbers that were set while patching.",
+            chosen,
+            listOf(
+                "Standard" to "Standard (1x)",
+                "Moderate" to "Moderate (about 1.5x)",
+                "Heavier" to "Heavier (about 2.5x)",
+            ),
+            mapOf(
+                "Standard" to levelWrites("Standard"),
+                "Moderate" to levelWrites("Moderate"),
+                "Heavier" to levelWrites("Heavier"),
+            ),
+            keys.associateWith { key ->
+                effective.firstOrNull { it.first == key }?.second?.toString()
+            } + (trigger to if (chosen == "Standard") null else "false"),
+        )
+        InAppMenu.switch(
+            "Map & Alerts", "Speed bump warnings",
+            "On announces speed bumps. Off silences them.",
+            bumps == true,
+            mapOf("CONFIG_VALUE_MAP_SHOW_SPEED_BUMPS_PERMANENT_HAZARD" to "true"),
+            off = "false",
+        )
+        val cameraMeters = (cameras ?: 0).toLong().coerceAtLeast(0)
+        InAppMenu.number(
+            "Map & Alerts", "Speed cameras - all types",
+            "Metres. 0 keeps Waze's own camera distance. Set it when camera alerts do not move with the level.",
+            cameraMeters, 0, 20000,
+            keys = listOf(camerasKey),
+            zeroClears = true,
+            baked = cameraMeters.takeIf { it > 0 },
+        )
         println("policeAlertDistancePatch: alert distances = $chosen, speed bumps = ${if (bumps == true) "on" else "off"}")
     }
 }

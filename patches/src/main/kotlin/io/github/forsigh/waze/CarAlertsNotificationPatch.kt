@@ -23,7 +23,12 @@ val carAlertsNotificationPatch = bytecodePatch(
     dependsOn(configOverridesPatch)
 
     execute {
-        recordBoolean("can", true, "CONFIG_VALUE_CAR_LIB_ALERTS_USING_NOTIFICATION")
+        InAppMenu.switch(
+            "Android Auto", "Car alerts as notifications",
+            "Shows car alerts as notifications.",
+            true,
+            mapOf("CONFIG_VALUE_CAR_LIB_ALERTS_USING_NOTIFICATION" to "true"),
+        )
         println("carAlertsNotificationPatch: car notification alerts forced on")
     }
 }

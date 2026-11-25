@@ -40,6 +40,9 @@ val configOverridesPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_WAZE)
 
+    // The getter blocks call ForsighSettings, which lives in the extension this patch merges.
+    dependsOn(forsighSettingsPatch)
+
     finalize {
         val declared = classDefByOrNull("Lcom/waze/config/ConfigValues;")
             ?.fields?.mapTo(mutableSetOf()) { it.name to it.type }

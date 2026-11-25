@@ -15,29 +15,33 @@ package io.github.forsigh.waze
  */
 internal object Overrides {
 
-    /** `CONFIG_VALUE_*` Boolean keys and the value to force. */
-    val booleans = LinkedHashMap<String, Boolean>()
+    /**
+     * `CONFIG_VALUE_*` Boolean keys and the value to force.
+     * A null value still hooks the key, but the hook falls through to Waze unless the in-app
+     * menu has stored a value.
+     */
+    val booleans = LinkedHashMap<String, Boolean?>()
 
-    /** `CONFIG_VALUE_*` Long keys and the value to force. */
-    val longs = LinkedHashMap<String, Long>()
+    /** `CONFIG_VALUE_*` Long keys and the value to force. Null hooks the key without a baked value. */
+    val longs = LinkedHashMap<String, Long?>()
 
-    /** `CONFIG_VALUE_*` String keys and the value to force. */
-    val strings = LinkedHashMap<String, String>()
+    /** `CONFIG_VALUE_*` String keys and the value to force. Null hooks the key without a baked value. */
+    val strings = LinkedHashMap<String, String?>()
 
     /**
      * `CONFIG_VALUE_*` Boolean keys written into Waze's native config store instead of the Java
      * getter. Anything the native layer decides (camera sounds, alert policy) never calls the
      * getter, so a forced return value there is invisible to it.
      */
-    val nativeBooleans = LinkedHashMap<String, Boolean>()
+    val nativeBooleans = LinkedHashMap<String, Boolean?>()
 
     /**
      * `CONFIG_VALUE_*` Long keys written into Waze's native config store with an absolute value.
      * The alert engine reads its policy natively, so a value forced only in the Java getter is
      * invisible to it - that is why alert distances looked dead on device.
      */
-    val nativeLongs = LinkedHashMap<String, Long>()
+    val nativeLongs = LinkedHashMap<String, Long?>()
 
     /** `CONFIG_VALUE_*` String keys written into the native config store. */
-    val nativeStrings = LinkedHashMap<String, String>()
+    val nativeStrings = LinkedHashMap<String, String?>()
 }

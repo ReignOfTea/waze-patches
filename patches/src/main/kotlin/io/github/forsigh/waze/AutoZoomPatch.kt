@@ -39,6 +39,18 @@ val autoZoomPatch = bytecodePatch(
     execute {
         val chosen = mode ?: "speed"
         requireChoice("autoZoomPatch", "mode", chosen, setOf("no", "yes", "speed"))
-        recordString("azm", "CONFIG_VALUE_ROUTING_AUTO_ZOOM" to chosen)
+        val key = "CONFIG_VALUE_ROUTING_AUTO_ZOOM"
+        InAppMenu.choice(
+            "Map & Alerts", "Auto zoom",
+            "speed zooms out as you go faster, yes keeps it on, no turns it off.",
+            chosen,
+            listOf("no" to "Off", "yes" to "On", "speed" to "With speed"),
+            mapOf(
+                "no" to mapOf(key to "no"),
+                "yes" to mapOf(key to "yes"),
+                "speed" to mapOf(key to "speed"),
+            ),
+            mapOf(key to chosen),
+        )
     }
 }

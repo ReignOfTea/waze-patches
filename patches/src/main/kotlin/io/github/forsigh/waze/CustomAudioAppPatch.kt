@@ -75,10 +75,14 @@ private val audioAppVisibilityPatch = resourcePatch {
     execute {
         // The partner list is gated on the audio-extension SDK flags server-side. Without them a
         // build whose server config says off renders an empty list even with the entry inserted.
-        recordBoolean(
-            "caa", true,
-            "CONFIG_VALUE_AUDIO_EXTENSION_SDK_FEATURE_ENABLED",
-            "CONFIG_VALUE_AUDIO_EXTENSION_SDK_ON",
+        InAppMenu.switch(
+            "Driving & Voice", "Audio partner",
+            "Lets the patched music app appear in Waze's audio player. The package name stays what was set while patching.",
+            true,
+            mapOf(
+                "CONFIG_VALUE_AUDIO_EXTENSION_SDK_FEATURE_ENABLED" to "true",
+                "CONFIG_VALUE_AUDIO_EXTENSION_SDK_ON" to "true",
+            ),
         )
         val packageName = audioAppPackageOption.value!!
         document("AndroidManifest.xml").use { document ->
